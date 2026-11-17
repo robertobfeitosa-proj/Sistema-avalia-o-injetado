@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Avaliação de Melhoria - Produtos Injetados v2.1.0</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f6f8; color: #222; }
+  header { background: #1f3a5f; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { margin: 0; font-size: 1.25rem; }
+  .badge { background: #e8a13d; color: #111; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-left: 10px; }
+  .version { font-size: 0.8rem; opacity: 0.9; }
+  main { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+  .card h2 { margin-top: 0; font-size: 1.1rem; border-bottom: 2px solid #1f3a5f; padding-bottom: 8px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) { .row { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 0.9rem; margin: 8px 0 4px; font-weight: 600; color: #333; }
+  input[type="file"], input[type="text"], select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; }
+  button { background: #1f3a5f; color: #fff; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.95rem; margin: 8px 8px 0 0; }
+  button:hover { background: #2a5082; }
+  button.secondary { background: #6c757d; }
+  button.secondary:hover { background: #5a6268; }
+  button.sim { background: #2e7d32; }
+  button.sim:hover { background: #1b5e20; }
+  button.export { background: #6a1b9a; }
+  button.export:hover { background: #4a148c; }
+  .file-hint { font-size: 0.85rem; color: #666; margin-top: 4px; }
+  .alert { padding: 10px 14px; border-radius: 4px; margin: 8px 0; font-size: 0.95rem; border-left: 4px solid; }
+  .alert.ok { background: #e7f4ea; border-color: #2e7d32; color: #1b5e20; }
+  .alert.warn { background: #fff8e1; border-color: #f9a825; color: #6d4c00; }
+  .alert.crit { background: #ffebee; border-color: #c62828; color: #b71c1c; }
+  .alert .titulo { font-weight: 700; }
+  .alert .calc { font-size: 0.85rem; color: #555; margin-top: 4px; font-family: monospace; }
+  .status-bar { background: #eef2f5; padding: 8px 16px; font-size: 0.85rem; color: #555; border-bottom: 1px solid #ddd; }
+  .hidden { display: none !important; }
+  .tab-btn { background: #eef2f5; color: #333; border: 1px solid #ccc; padding: 8px 14px; border-radius: 4px; cursor: pointer; margin-right: 6px; font-size: 0.9rem; }
+  .tab-btn.active { background: #1f3a5f; color: #fff; border-color: #1f3a5f; }
+  .tabs { margin-bottom: 16px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .resultado-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 16px; }
+  .resultado-item { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 12px; }
+  .resultado-item .lbl { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .resultado-item .val { font-size: 1.1rem; font-weight: 700; margin-top: 4px; }
+  .resultado-item .critico { color: #c62828; }
+  .resultado-item .ok { color: #2e7d32; }
+  pre { background: #f1f1f1; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 0.85rem; }
+  .ocr-progress { width: 100%; height: 8px; background: #e0e0e0; border-radius: 4px; margin: 8px 0; overflow: hidden; }
+  .ocr-bar { height: 100%; background: #1f3a5f; width: 0%; transition: width 0.3s; }
+  textarea#textoExtraido { height: 160px; font-family: monospace; font-size: 0.85rem; }
+  .imagem-preview { max-width: 100%; max-height: 400px; border: 1px dashed #ccc; border-radius: 4px; margin-top: 8px; display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Sistema de Avaliação de Melhoria - Produtos Injetados <span class="badge">v2.1.0</span></h1>
+    <div class="version">Leitura automática de PDF e Imagem (OCR) + Regras Bayer/Xometry/IIT</div>
+  </div>
+  <div><a href="schema_banco_dados.sql" target="_blank" style="color:#fff; text-decoration:underline;">Banco de dados SQL</a></div>
+</header>
+
+<div class="status-bar" id="statusBar">Pronto. Envie um PDF ou imagem (JPG/PNG) do desenho técnico para avaliação automática.</div>
+
+<main>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="abrirAba('upload', this)">Upload de Arquivo</button>
+    <button class="tab-btn" onclick="abrirAba('simulacao', this)">Modo Simulação (Dunas/Romazi_A2)</button>
+    <button class="tab-btn" onclick="abrirAba('resultado', this)">Resultado / Relatório</button>
+  </div>
+
+  <!-- ABA UPLOAD -->
+  <section id="aba-upload" class="tab-content active">
+    <div class="card">
+      <h2>1. Enviar desenho técnico</h2>
+      <p>Aceita <b>PDF</b> (via pdf.js) e <b>imagem</b> JPG/PNG (via OCR - Tesseract.js). Tudo roda no navegador, sem servidor.</p>
+      <label>Arquivo</label>
+      <input type="file" id="arquivo" accept=".pdf,.jpg,.jpeg,.png">
+      <div class="file-hint">PDFs vetoriais (CAD) sem texto embutido: use o OCR de imagem ou o Modo Simulação.</div>
+      <img id="previewImg" class="imagem-preview" alt="Pré-visualização">
+      <div id="ocrProgress" class="ocr-progress hidden"><div class="ocr-bar" id="ocrBar"></div></div>
+      <div id="textoBox" style="margin-top:12px;"><textarea id="textoExtraido" placeholder="Texto extraído aparecerá aqui..."></textarea></div>
+      <div style="margin-top:12px;">
+        <button onclick="processarArquivoDocumento()">Processar e Avaliar</button>
+        <button class="secondary" onclick="limparArquivo()">Limpar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA SIMULAÇÃO -->
+  <section id="aba-simulacao" class="tab-content hidden">
+    <div class="card">
+      <h2>2. Modo Simulação (dados padrão Dunas / Romazi_A2)</h2>
+      <p>Usa os dados lidos manualmente do desenho <b>301002004_CARC 1 TEC PA+TOM 10A DUNAS.pdf</b> para testar o sistema sem depender de leitura de arquivo.</p>
+      <button class="sim" onclick="carregarSimulacao()">Carregar dados da simulação Romazi_A2</button>
+      <div id="simDados" style="margin-top:12px; font-size:0.9rem; color:#555;"></div>
+    </div>
+  </section>
+
+  <!-- ABA RESULTADO -->
+  <section id="aba-resultado" class="tab-content hidden">
+    <div class="card">
+      <h2>3. Diagnóstico Automático</h2>
+      <div id="resumoGeral" class="resultado-grid"></div>
+      <div id="alertasContainer"></div>
+      <div style="margin-top:16px;">
+        <button class="export" onclick="exportarRelatorio()">Exportar relatório (.txt)</button>
+        <button class="secondary" onclick="voltarUpload()">Voltar ao upload</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer style="background:#1f3a5f; color:#fff; padding:14px 24px; text-align:center; font-size:0.85rem;">
+  Sistema de Avaliação de Melhoria - Produtos Injetados | Versão <span id="versaoRodape">2.1.0</span> |
+  Base de conhecimento: Boothroyd/Dewhurst/Knight DFMA · Bayer Thermoplastics Part & Mold Design · Xometry Design Guidelines · IIT Bombay/dsource
+</footer>
+
+<!-- Bibliotecas CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/index.min.js"></script>
+
+<script>
+const VERSAO = '2.1.0';
+document.getElementById('versaoRodape').textContent = VERSAO;
+
+// ------------------------------------------------------------------
+// Regras de conhecimento (consolidadas do schema_banco_dados.sql)
+// Fontes: Bayer Thermoplastics, Xometry Design Guidelines, IIT Bombay
+// ------------------------------------------------------------------
+const REGRAS = {
+  versoes: ['Bayer','Xometry','IIT','Fictiv','Boothroyd'],
+  materiais: {
+    // espessura recomendada em mm [min, max] (fonte: Xometry p.33 / Bayer)
+    'PP':   [0.89, 3.81],
+    'PS':   [0.89, 3.81],
+    'ABS':  [1.14, 3.56],
+    'PMMA': [0.64, 12.70],
+    'PE':   [0.76, 5.08],
+    'PVC':  [NULL, NULL],
+    'PC':   [1.02, 3.81],
+    'PC/ABS':[NULL, NULL],
+    'PA':   [0.76, 2.92],
+    'PBT':  [NULL, NULL],
+    'POM':  [0.76, 3.05],
+    'TPE':  [NULL, NULL],
+    'TPU':  [2.03, 19.05],
+    'TPV':  [NULL, NULL],
+    'PEI':  [NULL, NULL],
+    'PEEK': [NULL, NULL]
+  },
+  draft: {
+    padrao: 1.0,           // graus (Bayer)
+    minimo: 0.5,           // graus
+    san: 2.0,              // SAN 1-2 graus
+    tpu: 2.0,              // TPU 2 graus
+    textoPor0025mm: 1.0    // +1 grau por 0,0254 mm de textura
+  },
+  ribs: {
+    espessuraPctMin: 40,
+    espessuraPctMax: 60,
+    alturaMaxPct: 300      // altura < 3x espessura base
+    draftMin: 0.5,
+    raioBasePct: 25,       // >= 1/4 da parede
+    espacamentoMinPct: 400 // >= 4x espessura rib
+  },
+  boss: {
+    odMinFator: 2.0,       // OD >= 2.0x parafuso/insert
+    odMaxFator: 2.4,       // OD <= 2.4x
+    filletMinMm: 0.381     // 0,015 in
+  },
+  undercut: {
+    pcRigidaMax: 2,        // %
+    flexivelMax: 5,        // %
+    flexivelIdealMax: 10   // %
+  },
+  tolerancia: {
+    moldeMm: 0.13,         // ±0,005 in
+    encolhimentoMmMm: 0.05 // ±0,002 in/in
+  },
+  gate: {
+    landMaxMm: 1.524       // 0,060 in
+  },
+  cisalhamento: { // 1/s (Bayer Tab 7-1)
+    PC: 40000, ABS: 40000, PA: 60000, PU: 20000, SMA: 15000
+  }
+};
+
+let desenhoExtraido = {
+  numeroPeca: '',
+  revisao: '',
+  material: '',
+  dimensoes: [],
+  textoBruto: ''
+};
+
+let avaliacaoResultado = {};
+
+// ------------------------------------------------------------------
+// Abas
+// ------------------------------------------------------------------
+function abrirAba(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('aba-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'resultado') montarResultado();
+}
+
+function voltarUpload() {
+  abrirAba('upload');
+}
+
+// ------------------------------------------------------------------
+// Processamento de arquivo (PDF ou Imagem)
+// ------------------------------------------------------------------
+document.getElementById('arquivo').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const preview = document.getElementById('previewImg');
+  if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
+    const url = URL.createObjectURL(file);
+    preview.src = url;
+    preview.style.display = 'block';
+    document.getElementById('textoBox').style.display = 'none';
+  } else {
+    preview.style.display = 'none';
+    document.getElementById('textoBox').style.display = 'block';
+  }
+  setStatus('Arquivo selecionado: ' + file.name);
+});
+
+async function processarArquivoDocumento() {
+  const input = document.getElementById('arquivo');
+  const file = input.files[0];
+  if (!file) { alert('Selecione um arquivo primeiro.'); return; }
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  setStatus('Processando arquivo...');
+  let texto = '';
+
+  try {
+    if (ext === 'pdf') {
+      texto = await extrairTextoPDF(file);
+    } else if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
+      texto = await extrairTextoImagem(file);
+    } else {
+      alert('Tipo de arquivo não suportado.');
+      setStatus('Tipo não suportado.');
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao processar: ' + err.message);
+    setStatus('Erro no processamento.');
+    return;
+  }
+
+  document.getElementById('textoExtraido').value = texto;
+  desenhoExtraido.textoBruto = texto;
+  desenhoExtraido.dimensoes = extrairDimensoes(texto);
+  desenhoExtraido.material = detectarMaterial(texto);
+  desenhoExtraido.numeroPeca = extrairNumeroPeca(texto, file.name);
+  desenhoExtraido.revisao = extrairRevisao(texto);
+
+  setStatus('Texto extraído com sucesso.');
+  executarAvaliacao();
+  abrirAba('resultado');
+}
+
+async function extrairTextoPDF(file) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let textoCompleto = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const txt = await page.getTextContent();
+    const strings = txt.items.map(item => item.str).join(' ');
+    textoCompleto += strings + '\n';
+  }
+  return textoCompleto;
+}
+
+async function extrairTextoImagem(file) {
+  const worker = await Tesseract.createWorker('por');
+  worker.on('progress', p => {
+    const bar = document.getElementById('ocrBar');
+    if (bar) bar.style.width = Math.round(p.progress * 100) + '%';
+  });
+  document.getElementById('ocrProgress').classList.remove('hidden');
+  const url = URL.createObjectURL(file);
+  const ret = await worker.recognize(url);
+  await worker.terminate();
+  document.getElementById('ocrProgress').classList.add('hidden');
+  return ret.data.text || '';
+}
+
+function limparArquivo() {
+  document.getElementById('arquivo').value = '';
+  document.getElementById('textoExtraido').value = '';
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('textoBox').style.display = 'block';
+  desenhoExtraido = { numeroPeca:'', revisao:'', material:'', dimensoes:[], textoBruto:'' };
+  avaliacaoResultado = {};
+  document.getElementById('resumoGeral').innerHTML = '';
+  document.getElementById('alertasContainer').innerHTML = '';
+  setStatus('Limpo.');
+}
+
+// ------------------------------------------------------------------
+// Extração de dados do texto
+// ------------------------------------------------------------------
+function extrairDimensoes(texto) {
+  const dims = [];
+  // padrão: 121,0 ± 0,20  ou  R230,0 ± 0,20
+  const regex = /([Rr]?)\s*(\d+[.,]\d+)\s*[±]\s*(\d+[.,]\d+)/g;
+  let m;
+  while ((m = regex.exec(texto)) !== null) {
+    dims.push({
+      tipo: m[1] ? 'raio' : 'linear',
+      valor: parseFloat(m[2].replace(',', '.')),
+      tolerancia: parseFloat(m[3].replace(',', '.')),
+      bruto: m[0]
+    });
+  }
+  // dimensões simples sem tolerância (ex: comprimento 121,0)
+  const regexSimples = /(?:comprimento|altura|largura|espessura|diametro|diâmetro)\s*:?\s*(\d+[.,]\d+)/gi;
+  while ((m = regexSimples.exec(texto)) !== null) {
+    dims.push({
+      tipo: 'linear',
+      valor: parseFloat(m[1].replace(',', '.')),
+      tolerancia: null,
+      bruto: m[0]
+    });
+  }
+  return dims;
+}
+
+function detectarMaterial(texto) {
+  const t = texto.toUpperCase();
+  const materiais = ['PA','PP','PC','ABS','PS','PE','PVC','PMMA','PBT','POM','TPU','TPE','PEI','PEEK','PA6','PA66','PC/ABS'];
+  for (const mat of materiais) {
+    if (t.includes(mat)) return mat;
+  }
+  return '';
+}
+
+function extrairNumeroPeca(texto, nomeArquivo) {
+  const m = texto.match(/\b\d{7,10}\b/);
+  if (m) return m[0];
+  const m2 = nomeArquivo.match(/(\d{7,10})/);
+  return m2 ? m2[1] : 'N/D';
+}
+
+function extrairRevisao(texto) {
+  const m = texto.match(/Rev\.?\s*(\d+)/i);
+  return m ? m[1] : 'N/D';
+}
+
+// ------------------------------------------------------------------
+// Simulação Romazi_A2
+// ------------------------------------------------------------------
+function carregarSimulacao() {
+  const texto = `
+CÓDIGO: 301002004
+DESCRIÇÃO: CARC 1 TEC PA+TOM 10A DUNAS
+REV: 01
+COMPRIMENTO: 121,0 ± 0,20
+ALTURA: 118,0 ± 0,20
+ESPESSEURA: 1,5 / 1,7 / 1,9 ± 0,20
+LARGURA INTERNA: 38,9 ± 0,20
+COTAS: 16,4 / 23,1 / 66,0 / 70,4 / 73,0
+RAIO: R230,0 ± 0,20
+MATERIAL: PA (não especificado no desenho)
+DRAFT: não especificado
+CAVIDADES: não especificado
+`;
+  document.getElementById('textoExtraido').value = texto;
+  desenhoExtraido.textoBruto = texto;
+  desenhoExtraido.dimensoes = extrairDimensoes(texto);
+  desenhoExtraido.material = detectarMaterial(texto) || 'PA';
+  desenhoExtraido.numeroPeca = '301002004';
+  desenhoExtraido.revisao = '01';
+  document.getElementById('simDados').innerHTML = '<strong>Simulação carregada:</strong> ' + desenhoExtraido.numeroPeca + ' | Material: ' + desenhoExtraido.material;
+  setStatus('Simulação carregada.');
+  executarAvaliacao();
+  abrirAba('resultado');
+}
+
+// ------------------------------------------------------------------
+// Motor de avaliação automática
+// ------------------------------------------------------------------
+function executarAvaliacao() {
+  const d = desenhoExtraido;
+  const alertas = [];
+  const resumo = [];
+
+  // Material detectado
+  resumo.push({ lbl: 'Peça', val: d.numeroPeca });
+  resumo.push({ lbl: 'Revisão', val: d.revisao });
+  resumo.push({ lbl: 'Material detectado', val: d.material || 'Não detectado', cls: d.material ? 'ok' : 'critico' });
+
+  // 1. Espessura de parede
+  const espessuras = d.dimensoes.filter(x => x.bruto.toLowerCase().includes('espess') || (x.valor >= 0.5 && x.valor <= 5));
+  if (d.material && REGRAS.materiais[d.material]) {
+    const [min, max] = REGRAS.materiais[d.material];
+    if (min && max) {
+      const fora = espessuras.filter(e => e.valor < min || e.valor > max);
+      if (fora.length > 0) {
+        alertas.push({
+          tipo: 'crit',
+          titulo: 'Espessura de parede fora do padrão (' + d.material + ')',
+          texto: 'Recomendado ' + min + '–' + max + ' mm. Detectado(s): ' + fora.map(e => e.bruto).join(', '),
+          calc: 'Fonte: Xometry Design Guidelines p.33',
+          sugerencia: 'Ajustar espessura para ' + ((min + max) / 2).toFixed(2) + ' mm nominal ou coring em seções espessas.'
+        });
+      } else {
+        resumo.push({ lbl: 'Espessura de parede', val: 'Dentro do padrão ' + min + '–' + max + ' mm', cls: 'ok' });
+      }
+    }
+  } else {
+    alertas.push({
+      tipo: 'warn',
+      titulo: 'Material não informado no desenho',
+      texto: 'Não foi possível determinar o material automaticamente.',
+      calc: 'Verifique a ficha técnica da peça.',
+      sugerencia: 'Especificar o material no desenho (ex: PA, PP, PC, ABS) para aplicar regras de espessura e draft.'
+    });
+  }
+
+  // 2. Draft
+  const draftDetectado = extrairNumero(textoContem('draft', d.textoBruto));
+  const draftMin = (d.material === 'SAN' || d.material === 'TPU') ? 2.0 : REGRAS.draft.minimo;
+  if (draftDetectado !== null && draftDetectado < draftMin) {
+    alertas.push({
+      tipo: 'crit',
+      titulo: 'Draft insuficiente',
+      texto: 'Detectado ' + draftDetectado + '°. Mínimo recomendado: ' + draftMin + '°.',
+      calc: 'Fonte: Bayer Cap.2 / Xometry p.32',
+      sugerencia: 'Acrescentar pelo menos ' + draftMin + '° em superfícies paralelas à direção de abertura do molde.'
+    });
+  } else if (draftDetectado === null) {
+    alertas.push({
+      tipo: 'warn',
+      titulo: 'Draft não especificado',
+      texto: 'Não há menção a ângulo de rascunho no texto extraído.',
+      calc: 'Mínimo geral: 0,5° (maioria dos materiais).',
+      sugerencia: 'Especificar draft ≥ 1° em paredes verticais; ≥ 3° se houver textura.'
+    });
+  } else {
+    resumo.push({ lbl: 'Draft', val: draftDetectado + '° (≥ ' + draftMin + '°)', cls: 'ok' });
+  }
+
+  // 3. Ribs (se houver menção)
+  if (/rib|costela/i.test(d.textoBruto)) {
+    alertas.push({
+      tipo: 'info',
+      titulo: 'Costelas (ribs) detectadas',
+      texto: 'Verificar espessura 40–60% da parede e altura < 3x a espessura base.',
+      calc: 'Fonte: Bayer Tabela 2-1 / Xometry p.37',
+      sugerencia: 'Manter rib entre 40% e 60% da parede principal; raio base ≥ 1/4 da parede; draft 0,25–0,5°.'
+    });
+  }
+
+  // 4. Bosses (se houver menção)
+  if (/boss|bucha|pino/i.test(d.textoBruto)) {
+    alertas.push({
+      tipo: 'info',
+      titulo: 'Bosses detectados',
+      texto: 'OD recomendado 2,0–2,4× o diâmetro do parafuso/insert.',
+      calc: 'Fonte: Bayer Cap.2 p.27 / Xometry p.38',
+      sugerencia: 'Manter fillet na base ≥ 0,38 mm (0,015 in) e evitar fusão com parede lateral.'
+    });
+  }
+
+  // 5. Undercut (se houver menção)
+  if (/undercut|subcorte|rosca interna/i.test(d.textoBruto)) {
+    alertas.push({
+      tipo: 'warn',
+      titulo: 'Undercut possível',
+      texto: 'Resinas rígidas (PC) toleram ≤ 2%; flexíveis (PA, TPU) até 5–10%.',
+      calc: 'Fonte: Bayer Cap.2 p.34',
+      sugerencia: 'Redesenhar para eliminar undercut ou usar slide/lifter; evitar em PC rígido.'
+    });
+  }
+
+  // 6. Tolerâncias gerais
+  const toleranciasAbertas = d.dimensoes.filter(x => x.tolerancia !== null && x.tolerancia > 0.1);
+  if (toleranciasAbertas.length > 0) {
+    resumo.push({ lbl: 'Tolerâncias apertadas', val: toleranciasAbertas.length + ' cota(s)', cls: 'warn' });
+    alertas.push({
+      tipo: 'warn',
+      titulo: 'Tolerâncias muito apertadas',
+      texto: 'Moldes usinados ±0,13 mm; encolhimento ±0,05 mm/mm.',
+      calc: 'Fonte: Xometry p.61',
+      sugerencia: 'Aplicar tolerância apertada apenas em dimensões críticas; usar tolerância geométrica quando possível.'
+    });
+  }
+
+  // 7. Cálculo de força de fechamento (estimativa simples se houver área projetada)
+  // Usa a maior dimensão linear como proxy de área (apenas ilustrativo)
+  const maiorLinear = d.dimensoes.filter(x => x.tipo === 'linear').sort((a,b) => b.valor - a.valor)[0];
+  if (maiorLinear) {
+    const areaCm2 = (maiorLinear.valor / 10) * (maiorLinear.valor / 10); // cm² aproximado (quadrado)
+    const forcaToneladas = (areaCm2 * 100) / 1000; // pressão cavidade assumida 100 bar / 1000
+    resumo.push({ lbl: 'Força fechamento estimada', val: forcaToneladas.toFixed(1) + ' t (aprox.)', cls: 'ok' });
+    alertas.push({
+      tipo: 'info',
+      titulo: 'Estimativa de tonagem',
+      texto: 'F ≈ (Pressão cavidade × Área projetada) / 1000.',
+      calc: 'Área ≈ ' + areaCm2.toFixed(1) + ' cm² · Pressão assumida 100 bar',
+      sugerencia: 'Confirmar com fornecedor do molde e máquina de injeção.'
+    });
+  }
+
+  // Montar resultado
+  avaliacaoResultado = { resumo, alertas, desenho: d };
+  montarResultado();
+}
+
+function textoContem(palavra, texto) {
+  return palavra;
+}
+
+function extrairNumero(fragmento) {
+  // placeholder para extração de número de draft se necessário
+  const m = fragmento.match(/(\d+[.,]?\d*)\s*°?/);
+  return m ? parseFloat(m[1].replace(',', '.')) : null;
+}
+
+function montarResultado() {
+  const grid = document.getElementById('resumoGeral');
+  const container = document.getElementById('alertasContainer');
+  grid.innerHTML = '';
+  container.innerHTML = '';
+
+  if (avaliacaoResultado.resumo.length === 0 && avaliacaoResultado.alertas.length === 0) {
+    grid.innerHTML = '<div class="resultado-item"><div class="lbl">Aguardando avaliação</div><div class="val">Processe um arquivo ou carregue a simulação.</div></div>';
+    return;
+  }
+
+  avaliacaoResultado.resumo.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'resultado-item ' + (item.cls || '');
+    el.innerHTML = '<div class="lbl">' + item.lbl + '</div><div class="val ' + (item.cls || '') + '">' + item.val + '</div>';
+    grid.appendChild(el);
+  });
+
+  if (avaliacaoResultado.alertas.length === 0) {
+    container.innerHTML = '<div class="alert ok"><span class="titulo">✅ Nenhum alerta crítico nas regras verificadas.</span></div>';
+  } else {
+    avaliacaoResultado.alertas.forEach(a => {
+      const cls = a.tipo === 'crit' ? 'alert crit' : (a.tipo === 'warn' ? 'alert warn' : 'alert ok');
+      const icone = a.tipo === 'crit' ? '⚠️' : (a.tipo === 'warn' ? '⚠️' : 'ℹ️');
+      const el = document.createElement('div');
+      el.className = cls;
+      el.innerHTML = '<span class="titulo">' + icone + ' ' + a.titulo + '</span><br>' +
+                     '<span style="font-size:0.9rem;">' + a.texto + '</span>' +
+                     (a.calc ? '<div class="calc">' + a.calc + '</div>' : '') +
+                     '<div style="margin-top:6px;"><strong>Sugestão de melhoria:</strong> ' + a.sugerencia + '</div>';
+      container.appendChild(el);
+    });
+  }
+}
+
+function exportarRelatorio() {
+  const d = avaliacaoResultado.desenho;
+  let txt = 'RELATÓRIO DE AVALIAÇÃO AUTOMÁTICA\n';
+  txt += 'Sistema v' + VERSAO + '\n';
+  txt += 'Data: ' + new Date().toLocaleString('pt-BR') + '\n';
+  txt += 'Peça: ' + d.numeroPeca + ' | Rev: ' + d.revisao + '\n';
+  txt += 'Material: ' + (d.material || 'Não detectado') + '\n\n';
+  txt += '--- RESUMO ---\n';
+  avaliacaoResultado.resumo.forEach(r => txt += '- ' + r.lbl + ': ' + r.val + '\n');
+  txt += '\n--- ALERTAS / SUGESTÕES ---\n';
+  avaliacaoResultado.alertas.forEach(a => txt += '- [' + a.tipo.toUpperCase() + '] ' + a.titulo + ': ' + a.texto + ' | Sugestão: ' + a.sugerencia + '\n');
+  txt += '\n--- TEXTO EXTRAÍDO ---\n' + d.textoBruto;
+
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'avaliacao_' + (d.numeroPeca || 'peca') + '_v' + VERSAO + '.txt';
+  a.click();
+}
+
+function setStatus(msg) {
+  document.getElementById('statusBar').textContent = msg;
+}
+</script>
+</body>
+</html>
