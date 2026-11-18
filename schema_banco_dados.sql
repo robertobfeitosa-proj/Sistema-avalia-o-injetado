@@ -1303,4 +1303,159 @@ INSERT INTO padroes_xometry (item, valor, obs) VALUES
 INSERT INTO versoes_sistema (versao, data_lancamento, descricao, arquivo_download) VALUES
 ('1.2.0','2026-11-17','Inclusão do guia Xometry Design Guidelines and Best Practices for Injection Molding (86 pág.) — 7 tabelas XY-xxx + acabamentos SPI/VDI/Mold-Tech.','schema_banco_dados.sql');
 
-SELECT 'Banco de dados criado com sucesso — v1.2.0 (Boothroyd + Bayer + Xometry).' AS msg;
+-- ============================================================================
+-- FONTE 6 — NORMAS DE TOMADAS E INTERRUPTORES
+-- ABNT NBR 14136:2012/2018 · ABNT NBR NM 60669-1 · IEC 60884-1 · IEC 60669-1
+-- Valores extraidos de fontes publicas (ABNT/catalogos fabricantes/relatorios
+-- de ensaio IEC). Confirmar sempre na norma oficial antes de uso critico.
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- NORMAS 1. Catalogo de normas aplicaveis
+-- ----------------------------------------------------------------------------
+CREATE TABLE normas_eletricas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(30) UNIQUE,
+    norma VARCHAR(80) NOT NULL,
+    titulo VARCHAR(255),
+    produto VARCHAR(80),                -- Tomada, Plugue, Interruptor
+    tensao_nominal VARCHAR(40),
+    corrente_nominal VARCHAR(40),
+    observacoes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO normas_eletricas (codigo, norma, titulo, produto, tensao_nominal, corrente_nominal, observacoes) VALUES
+('NORM-001','ABNT NBR 14136:2012/2018','Plugues e tomadas para uso domestico e anallogo, ate 20 A / 250 V em corrente alternada — Padronizacao','Tomada / Plugue','250 V CA','10 A e 20 A','Padrao brasileiro (tipo N / IEC 60906-1). 3 pinos cilindricos em formato Y. Compulsorio pela Lei 11.337/2006; Portaria INMETRO 90/2022.'),
+('NORM-002','ABNT NBR NM 60669-1','Interruptores para instalacoes eletricas fixas domesticas e anallogas — Parte 1: Requisitos gerais','Interruptor','ate 440 V CA','ate 63 A','Equivalente a IEC 60669-1. Correntes tipicas 10A/10AX/16A/16AX.'),
+('NORM-003','IEC 60884-1','Plugs and socket-outlets for household and similar purposes — Part 1: General requirements','Tomada / Plugue','50 a 440 V CA','ate 32 A','Base internacional. Tomadas fixas sem parafuso limitadas a 16 A. Durabilidade 5000 insercoes / 10000 cursos.'),
+('NORM-004','IEC 60669-1:2017','Switches for household and similar fixed-electrical installations — Part 1: General requirements','Interruptor','ate 440 V CA','ate 63 A','4a edicao. Terminais sem parafuso limitados a 16 A. Graus de protecao IP20/IP40/IP44/IP54/IP55.'),
+('NORM-005','ABNT NBR 5410','Instalacoes eletricas de baixa tensao','Instalacao','ate 1000 V CA','—','Exige aterramento das tomadas com contato terra.');
+
+-- ----------------------------------------------------------------------------
+-- NORMAS 2. Regras dimensionais (valores normatizados em mm)
+-- ----------------------------------------------------------------------------
+CREATE TABLE regras_dimensao_norma (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(30) UNIQUE,
+    norma VARCHAR(40),
+    parametro VARCHAR(180),
+    aplicacao VARCHAR(120),
+    valor_min DECIMAL(10,3),
+    valor_max DECIMAL(10,3),
+    tolerancia VARCHAR(40),
+    unidade VARCHAR(20),
+    descricao TEXT,
+    referencia VARCHAR(80),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO regras_dimensao_norma (codigo, norma, parametro, aplicacao, valor_min, valor_max, tolerancia, unidade, descricao, referencia) VALUES
+('NORM-DIM-001','NBR 14136','Diametro do pino/furo 10 A','Plugue/tomada 10 A',4.0,4.0,'±0,05','mm','Pinos e orificios de 4,0 mm para 10 A.','Anexo A, NBR 14136'),
+('NORM-DIM-002','NBR 14136','Diametro do pino/furo 20 A','Plugue/tomada 20 A',4.8,4.8,'±0,05','mm','Pinos e orificios de 4,8 mm para 20 A.','Anexo A, NBR 14136'),
+('NORM-DIM-003','NBR 14136','Espacamento entre centros dos pinos','Plugue/tomada',19.0,19.0,'±0,2','mm','Distancia nominal entre centros dos pinos.','Anexo A, NBR 14136'),
+('NORM-DIM-004','NBR 14136','Espacamento (tolerancia positiva)','Plugue/tomada',19.0,19.7,'+0,7 / -0','mm','Faixa admissivel com tolerancia +0,7/-0.','Anexo A, NBR 14136'),
+('NORM-DIM-005','NBR 14136','Angulo entre pinos','Plugue/tomada',90,90,'+2° / -0°','graus','Disposicao em Y dos pinos.','Anexo A, NBR 14136'),
+('NORM-DIM-006','NBR 14136','Comprimento do pino','Plugue',13.5,13.5,'—','mm','Comprimento nominal do pino.','Anexo A, NBR 14136'),
+('NORM-DIM-007','NBR 14136','Largura da face da tomada','Tomada',26.0,26.0,'±0,5','mm','Dimensao da face.','Anexo A, NBR 14136'),
+('NORM-DIM-008','NBR 14136','Altura da tomada','Tomada',35.5,35.5,'±0,5','mm','Dimensao total.','Anexo A, NBR 14136'),
+('NORM-DIM-009','NBR 14136','Profundidade de rebaixo','Tomada',17.0,17.0,'±0,5','mm','Contatos rebaixados (protecao contra contato direto).','Anexo A, NBR 14136'),
+('NORM-DIM-010','NBR 14136','Pino terra mais longo','Plugue',0.5,NULL,'min','mm','Pino de aterramento deve entrar antes dos pinos vivos.','NBR 14136 / IEC 60906-1'),
+('NORM-DIM-011','IEC 60884','Diametro do pino','Plugue IEC',4.8,4.8,'—','mm','Pinos de 4,8 mm (padrao europeu CEE 7).','IEC 60884-1 / CEE 7'),
+('NORM-DIM-012','IEC 60884','Espacamento entre pinos','Plugue IEC',19.0,19.0,'—','mm','Espacamento de 19 mm.','IEC 60884-1 / CEE 7'),
+('NORM-DIM-013','NBR NM 60669-1','Dimensao modulo (1 modulo)','Interruptor modular',22.5,22.5,'—','mm','Largura de 1 modulo (ex.: 42,5 x 22,5 x 44,2 mm).','Catalogos fabricantes'),
+('NORM-DIM-014','NBR NM 60669-1','Secao maxima do condutor por borne','Interruptor/Tomada',2.5,2.5,'—','mm2','Ate 2 condutores de 2,5 mm2 por borne.','Catalogos fabricantes');
+
+-- ----------------------------------------------------------------------------
+-- NORMAS 3. Material e isolamento
+-- ----------------------------------------------------------------------------
+CREATE TABLE regras_material_norma (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(30) UNIQUE,
+    norma VARCHAR(40),
+    parametro VARCHAR(150),
+    valor VARCHAR(120),
+    descricao TEXT,
+    referencia VARCHAR(80),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO regras_material_norma (codigo, norma, parametro, valor, descricao, referencia) VALUES
+('NORM-MAT-001','NBR 14136','Material isolante','Termoplastico/termofixo autoextinguivel','Bases e carcacas em material isolante autoextinguivel.','NBR 14136 / catalogos'),
+('NORM-MAT-002','NBR 14136','Resistencia a incandescencia','850 C','Partes isolantes devem resistir ao ensaio de fio incandescente a 850 C.','IEC 60695-2-11 / IEC 60884'),
+('NORM-MAT-003','NBR 14136','Classificacao de chama','UL 94 V-0 / V-1','Resina com classificacao UL 94 V-0 ou V-1 recomendada.','UL 94 / catalogos'),
+('NORM-MAT-004','NBR 14136','Aterramento','Obrigatorio','Tomada deve possuir contato de aterramento (3o pino).','NBR 5410 / NBR 14136'),
+('NORM-MAT-005','NBR NM 60669-1','Material da base','Termoplastico autoextinguivel 850 C','Base autoextinguivel ate 850 C.','Catalogos fabricantes'),
+('NORM-MAT-006','NBR NM 60669-1','Material da tecla','Termoplastico com protecao UV','Teclas em termoplastico com estabilizador UV.','Catalogos fabricantes'),
+('NORM-MAT-007','NBR NM 60669-1','Grau de protecao','IP20 / IP40 / IP44 / IP54 / IP55','Interruptores devem ter grau de protecao IP declarado.','IEC 60669-1 / IEC 60529'),
+('NORM-MAT-008','IEC 60669-1','Durabilidade mecanica','40.000 operacoes (<=16 A / <=250 V CA)','Numero de operacoes conforme corrente nominal (Tabela 17/18).','IEC 60669-1'),
+('NORM-MAT-009','IEC 60884-1','Durabilidade (tomada)','5.000 insercoes / 10.000 cursos','Ensaio de resistencia mecanica plug/tomada.','IEC 60884-1'),
+('NORM-MAT-010','NBR NM 60669-1','Temperatura de operacao','-5 a 45 C','Faixa tipica declarada em catalogos.','Catalogos fabricantes'),
+('NORM-MAT-011','NBR 14136','Correntes Nominais','10 A / 20 A','Apenas duas configuracoes de corrente. Tomada 20A aceita plug 10A e 20A; tomada 10A NAO aceita plug 20A.','NBR 14136');
+
+-- ----------------------------------------------------------------------------
+-- NORMAS 4. Identificacao e marcacao
+-- ----------------------------------------------------------------------------
+CREATE TABLE regras_marcacao_norma (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(30) UNIQUE,
+    norma VARCHAR(40),
+    item VARCHAR(120),
+    obrigatorio VARCHAR(20),
+    descricao TEXT,
+    referencia VARCHAR(80),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO regras_marcacao_norma (codigo, norma, item, obrigatorio, descricao, referencia) VALUES
+('NORM-MAR-001','NBR 14136','Corrente nominal (10A / 20A)','Sim','Marcacao da corrente nominal proxima aos bornes.','NBR 14136'),
+('NORM-MAR-002','NBR 14136','Tensao nominal (250V~)','Sim','Marcacao 250 V CA.','NBR 14136'),
+('NORM-MAR-003','NBR 14136','Simbolo de aterramento','Sim','Borne terra identificado com simbolo (NBR 11467 item 3.2.19).','NBR 14136 / NBR 11467'),
+('NORM-MAR-004','NBR 14136','Identificacao dos outros bornes','Opcional','Fase/neutro podem ser opcionais; terra obrigatorio.','NBR 14136'),
+('NORM-MAR-005','NBR NM 60669-1','Corrente nominal (A ou AX)','Sim','Ex.: 10A, 10AX, 16AX (AX = carga fluorescente).','IEC 60669-1 clausula 8'),
+('NORM-MAR-006','NBR NM 60669-1','Tensao nominal (V)','Sim','Ex.: 250 V.','IEC 60669-1 clausula 8'),
+('NORM-MAR-007','NBR NM 60669-1','Simbolo natureza da alimentacao (~)','Sim','Corrente alternada.','IEC 60669-1 clausula 8'),
+('NORM-MAR-008','NBR NM 60669-1','Nome do fabricante ou marca','Sim','Razao social/marca do responsavel.','IEC 60669-1 clausula 8'),
+('NORM-MAR-009','NBR NM 60669-1','Grau de protecao IPXX','Quando aplicavel','Ex.: IP20, IP44.','IEC 60669-1 / IEC 60529'),
+('NORM-MAR-010','NBR 14136','Codigo do produto / revisao','Recomendado','Rastreabilidade no desenho tecnico.','Boa pratica');
+
+INSERT INTO versoes_sistema (versao, data_lancamento, descricao, arquivo_download) VALUES
+('1.3.0','2026-11-18','Inclusao das normas de tomadas e interruptores (NBR 14136, NBR NM 60669-1, IEC 60884-1, IEC 60669-1): dimensoes, materiais e marcacoes.','schema_banco_dados.sql');
+
+-- ----------------------------------------------------------------------------
+-- NORMAS 5. NBR 5410 — Instalacoes Eletricas de Baixa Tensao (ate 1000 V CA)
+-- ----------------------------------------------------------------------------
+CREATE TABLE regras_instalacao_nbr5410 (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(30) UNIQUE,
+    tema VARCHAR(120),
+    parametro VARCHAR(180),
+    valor VARCHAR(120),
+    descricao TEXT,
+    referencia VARCHAR(80),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO regras_instalacao_nbr5410 (codigo, tema, parametro, valor, descricao, referencia) VALUES
+('NBR5410-001','Abrangencia','Tensao nominal','<= 1000 V CA / < 400 Hz; <= 1500 V CC','A norma se aplica a instalacoes nessa faixa de tensao.','NBR 5410 sec.1'),
+('NBR5410-002','Aterramento','Contato PE nas tomadas','Obrigatorio','Todas as tomadas fixas devem ser do tipo com contato de aterramento (PE); residential conforme NBR 14136.','NBR 5410 item 6.5.3.1'),
+('NBR5410-003','Protecao choque','Contatos diretos','IP2X ou isolacao 500 V / 1 min','Barreiras ou involucros IP2X, ou isolacao capaz de suportar 500 V CA por 1 min.','NBR 5410 item 5.1.1.1.5'),
+('NBR5410-004','DR 30 mA','Locais com banheira/chuveiro','I{delta}n <= 30 mA','Circuitos que servem pontos em locais com banheira ou chuveiro.','NBR 5410 (DR)'),
+('NBR5410-005','DR 30 mA','Tomadas areas externas','I{delta}n <= 30 mA','Circuitos que alimentam tomadas em areas externas a edificacao.','NBR 5410 (DR)'),
+('NBR5410-006','DR 30 mA','Tomadas internas p/ equipamentos externos','I{delta}n <= 30 mA','Tomadas internas que possam alimentar equipamentos usados no exterior.','NBR 5410 (DR)'),
+('NBR5410-007','DR 30 mA','Cozinhas/copas/lavanderias/garagens','I{delta}n <= 30 mA','Circuitos de tomadas em cozinhas, copas-cozinhas, lavanderias, areas de servico e garagens.','NBR 5410 (DR)'),
+('NBR5410-008','Bitola minima','Circuito de iluminacao','1,5 mm2 (cobre)','Secao minima por razoes mecanicas.','NBR 5410 Tab. 6.2'),
+('NBR5410-009','Bitola minima','Circuitos de tomadas (TUG/TUE)','2,5 mm2 (cobre)','Circuitos de tomadas sao considerados circuitos de forca.','NBR 5410 Tab. 6.2'),
+('NBR5410-010','Bitola minima','Comando/sinalizacao','0,5 mm2 (cobre)','Secao minima para circuitos de sinalizacao e controle.','NBR 5410 Tab. 6.2'),
+('NBR5410-011','Bitola minima','Circuitos de forca','2,5 mm2 (cobre)','Secao minima por razoes mecanicas.','NBR 5410 Tab. 6.2'),
+('NBR5410-012','Ampacidade','Capacidade de conducao','I_z >= I_b','Corrente corrigida do circuito deve ser >= corrente de projeto; aplicar fatores FCA e FCT.','NBR 5410 sec.6'),
+('NBR5410-013','Separacao de circuitos','Iluminacao x tomadas','Separados','Iluminacao separada de tomadas; circuitos exclusivos para cargas de maior potencia.','NBR 5410 sec.9'),
+('NBR5410-014','Esquema de aterramento','TT / TN / IT','Conforme projeto','Definir esquema de aterramento e influencias externas de cada ambiente.','NBR 5410 sec.4'),
+('NBR5410-015','Equipotencializacao','BEP','Obrigatorio','Barra de equipotencializacao principal deve interligar massas e condutores de protecao.','NBR 5410 item 6.4'),
+('NBR5410-016','Protecao surtos','DPS','Conforme analise de risco','Prever dispositivos de protecao contra surtos conforme risco de SPDA.','NBR 5410 sec.5'),
+('NBR5410-017','Verificacao final','Ensaios antes da energizacao','Obrigatorio','Secao 7 exige inspecao visual e ensaios com registro (as built, quadro de cargas, identificacao de circuitos).','NBR 5410 sec.7');
+
+INSERT INTO versoes_sistema (versao, data_lancamento, descricao, arquivo_download) VALUES
+('1.4.0','2026-11-18','Inclusao da NBR 5410 (Instalacoes Eletricas de Baixa Tensao) — 17 regras de instalacao, aterramento, DR, bitolas e verificacao final.','schema_banco_dados.sql');
+
+SELECT 'Banco de dados criado com sucesso — v1.4.0 (Boothroyd + Bayer + Xometry + Normas Eletricas + NBR 5410).' AS msg;

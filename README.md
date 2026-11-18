@@ -1,4 +1,4 @@
-# Sistema de Avaliação de Melhoria — Produtos Injetados v2.1.0
+# Sistema de Avaliação de Melhoria — Produtos Injetados v2.3.0
 
 Sistema leve (HTML + JavaScript, **frontend-only**) para avaliar oportunidades de melhoria em peças de injeção de plástico, com leitura automática de **PDF** (via **pdf.js**) e de **imagem JPG/PNG** (via **OCR - Tesseract.js**), com base nas regras dos guias **Bayer Thermoplastics Part & Mold Design**, **Xometry Design Guidelines**, **IIT Bombay/dsource** e **Boothroyd/Dewhurst/Knight DFMA**.
 
@@ -6,10 +6,13 @@ Sistema leve (HTML + JavaScript, **frontend-only**) para avaliar oportunidades d
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `index.html` | Sistema frontend v2.1.0 — leitura PDF + imagem (OCR), avaliação automática, relatório e exportação. |
+| `index.html` | Sistema frontend v2.3.0 — leitura PDF + imagem (OCR), avaliação automática, **normas elétricas (tomadas/interruptores/instalações)**, relatório e exportação. |
 | `schema_banco_dados.sql` | Banco de dados MySQL/MariaDB com regras consolidadas (Boothroyd + Bayer + Xometry + IIT). Tabelas `*_bayer`, `*_xometry`, `*_iit`, `*_fictiv` etc. |
+| `libs/` | **Bibliotecas locais** (pdf.js v3.11.174, Tesseract.js v5.1.1, core WASM e dicionário PORTuguês). Não depende de internet/CDN. |
 | `README.md` | Este arquivo. |
 | `PASSO_A_PASSO_GITHUB.md` | Passo a passo detalhado para subir no GitHub e hospedar via GitHub Pages. |
+
+> **Importante:** as bibliotecas ficam na pasta `libs/` e são carregadas localmente pelo `index.html` (`<script src="libs/pdf.min.js">`). Ao enviar para o GitHub, **envie também a pasta `libs/` inteira** (são ~15 MB). Assim o sistema funciona em qualquer rede, mesmo sem acesso a CDNs externos. Corrigido em 18/11/2026.
 
 ---
 
@@ -58,8 +61,23 @@ Você pode importar esse SQL no **MySQL**, **MariaDB** ou adaptar para **Postgre
 5. Na aba **Resultado / Relatório**, veja os alertas automáticos e sugestões de melhoria com cálculo.
 6. Clique em **Exportar relatório (.txt)** para salvar o diagnóstico.
 7. Use a aba **Modo Simulação** para testar com dados padrão da linha Dunas/Romazi_A2 sem precisar de arquivo.
+8. Na aba **Normas Elétricas**, escolha o tipo de produto (Tomada/Interruptor) e a corrente (10/16/20 A), e clique em **Aplicar Normas ao Desenho** para verificar conformidade com NBR 14136 / IEC 60884 / NBR NM 60669-1 / IEC 60669-1.
 
-O sistema funciona **offline** após abrir (as bibliotecas vêm de CDN, exigindo internet na primeira carga). Para acessar de qualquer lugar sem instalar nada, hospede via **GitHub Pages** (veja `PASSO_A_PASSO_GITHUB.md`).
+O sistema funciona **offline** (bibliotecas na pasta `libs/`). Para acessar de qualquer lugar sem instalar nada, hospede via **GitHub Pages** (veja `PASSO_A_PASSO_GITHUB.md`).
+
+### 3.1 Normas elétricas aplicadas (v2.2.0)
+
+| Norma | Produto | Principais verificações no desenho |
+|-------|---------|------------------------------------|
+| **ABNT NBR 14136** | Tomadas e plugues 2P+T | Ø do pino 4,0 mm (10 A) / 4,8 mm (20 A) ±0,05; espaçamento 19 ±0,2 mm; ângulo 90°; pino terra; marcações 10/20 A, 250 V~; compatibilidade 20 A aceita 10 A (não o contrário). |
+| **IEC 60884-1** | Tomadas/Plugues | Pinos 4,8 mm, espaçamento 19 mm; durabilidade 5.000 inserções/10.000 cursos; grau IP. |
+| **ABNT NBR NM 60669-1 / IEC 60669-1** | Interruptores | Correntes 10A/10AX/16A/16AX; tensão até 440 V; durabilidade 40.000 operações (≤16 A); graus IP20/IP40/IP44/IP54/IP55; marcações obrigatórias. |
+| **ABNT NBR 5410** | Instalações elétricas (≤1000 V CA) | Aterramento PE obrigatório; DR 30 mA em áreas úmidas/externas; bitolas mínimas (iluminação 1,5 mm², tomadas 2,5 mm², comando 0,5 mm²); esquemas TT/TN/IT; BEP; DPS; separação de circuitos; ampacidade I_z ≥ I_b; verificação final (sec.7). |
+| Materiais (todos) | Isolamento | Termoplástico autoextinguível 850 °C; UL 94 V-0/V-1; aterramento obrigatório. |
+
+> **Aviso:** valores extraídos de fontes públicas (ABNT, catálogos de fabricantes, relatórios de ensaio IEC). Confirme sempre na norma oficial antes de uso crítico.
+
+O `schema_banco_dados.sql` v1.4.0 contém as tabelas `normas_eletricas`, `regras_dimensao_norma`, `regras_material_norma`, `regras_marcacao_norma` e `regras_instalacao_nbr5410` (17 regras de instalação) com esses dados.
 
 ---
 

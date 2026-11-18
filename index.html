@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema de Avaliação de Melhoria - Produtos Injetados v2.1.0</title>
+<title>Sistema de Avaliação de Melhoria - Produtos Injetados v2.3.0</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f4f6f8; color: #222; }
@@ -57,8 +57,8 @@
 
 <header>
   <div>
-    <h1>Sistema de Avaliação de Melhoria - Produtos Injetados <span class="badge">v2.1.0</span></h1>
-    <div class="version">Leitura automática de PDF e Imagem (OCR) + Regras Bayer/Xometry/IIT</div>
+    <h1>Sistema de Avaliação de Melhoria - Produtos Injetados <span class="badge">v2.3.0</span></h1>
+    <div class="version">PDF + Imagem (OCR) + Regras Bayer/Xometry + Normas NBR 14136 / IEC 60669 / IEC 60884 / NBR 5410 (Instalações)</div>
   </div>
   <div><a href="schema_banco_dados.sql" target="_blank" style="color:#fff; text-decoration:underline;">Banco de dados SQL</a></div>
 </header>
@@ -70,6 +70,7 @@
   <div class="tabs">
     <button class="tab-btn active" onclick="abrirAba('upload', this)">Upload de Arquivo</button>
     <button class="tab-btn" onclick="abrirAba('simulacao', this)">Modo Simulação (Dunas/Romazi_A2)</button>
+    <button class="tab-btn" onclick="abrirAba('normas', this)">Normas Elétricas</button>
     <button class="tab-btn" onclick="abrirAba('resultado', this)">Resultado / Relatório</button>
   </div>
 
@@ -84,6 +85,32 @@
       <img id="previewImg" class="imagem-preview" alt="Pré-visualização">
       <div id="ocrProgress" class="ocr-progress hidden"><div class="ocr-bar" id="ocrBar"></div></div>
       <div id="textoBox" style="margin-top:12px;"><textarea id="textoExtraido" placeholder="Texto extraído aparecerá aqui..."></textarea></div>
+      <div class="row" style="margin-top:12px;">
+        <div>
+          <label>Material (corrija se o OCR errou)</label>
+          <select id="materialManual">
+            <option value="">Detecção automática</option>
+            <option value="PP">PP — Polipropileno</option>
+            <option value="PE">PE — Polietileno</option>
+            <option value="ABS">ABS</option>
+            <option value="PS">PS — Poliestireno</option>
+            <option value="PA">PA — Poliamida (Nylon)</option>
+            <option value="PC">PC — Policarbonato</option>
+            <option value="PC/ABS">PC/ABS</option>
+            <option value="POM">POM — Acetal</option>
+            <option value="PBT">PBT</option>
+            <option value="PMMA">PMMA — Acrílico</option>
+            <option value="PVC">PVC</option>
+            <option value="TPU">TPU</option>
+            <option value="TPE">TPE</option>
+          </select>
+          <div class="file-hint">O OCR pode confundir siglas (ex: "PA" dentro de "PADRÃO"). Selecione aqui o material correto.</div>
+        </div>
+        <div>
+          <label>Número da peça (opcional)</label>
+          <input type="text" id="numeroPecaManual" placeholder="ex: 301002004">
+        </div>
+      </div>
       <div style="margin-top:12px;">
         <button onclick="processarArquivoDocumento()">Processar e Avaliar</button>
         <button class="secondary" onclick="limparArquivo()">Limpar</button>
@@ -98,6 +125,39 @@
       <p>Usa os dados lidos manualmente do desenho <b>301002004_CARC 1 TEC PA+TOM 10A DUNAS.pdf</b> para testar o sistema sem depender de leitura de arquivo.</p>
       <button class="sim" onclick="carregarSimulacao()">Carregar dados da simulação Romazi_A2</button>
       <div id="simDados" style="margin-top:12px; font-size:0.9rem; color:#555;"></div>
+    </div>
+  </section>
+
+  <!-- ABA NORMAS ELETRICAS -->
+  <section id="aba-normas" class="tab-content hidden">
+    <div class="card">
+      <h2>Normas de Tomadas e Interruptores</h2>
+      <p>Analise do desenho (PDF/imagem) aplicando <b>ABNT NBR 14136</b>, <b>NBR NM 60669-1</b>, <b>IEC 60884-1</b> e <b>IEC 60669-1</b>. Verifica dimensões, material/isolamento e marcações.</p>
+      <div class="row">
+        <div>
+          <label>Tipo de produto</label>
+          <select id="tipoProdutoNorma">
+            <option value="tomada">Tomada 2P+T (NBR 14136)</option>
+            <option value="interruptor">Interruptor (NBR NM 60669-1 / IEC 60669-1)</option>
+            <option value="instalacao">Instalação elétrica (NBR 5410)</option>
+          </select>
+        </div>
+        <div>
+          <label>Corrente nominal declarada</label>
+          <select id="correnteNorma">
+            <option value="10">10 A</option>
+            <option value="20">20 A</option>
+            <option value="16">16 A (interruptor/IEC)</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <button onclick="avaliarNormas()">Aplicar Normas ao Desenho</button>
+      </div>
+      <div id="normasResultado" style="margin-top:16px;"></div>
+      <p style="font-size:0.8rem; color:#888; margin-top:16px;">
+        ⚠️ Valores extraídos de fontes públicas (ABNT/catálogos/relatórios IEC). Confirme sempre na norma oficial antes de uso crítico.
+      </p>
     </div>
   </section>
 
@@ -117,16 +177,28 @@
 </main>
 
 <footer style="background:#1f3a5f; color:#fff; padding:14px 24px; text-align:center; font-size:0.85rem;">
-  Sistema de Avaliação de Melhoria - Produtos Injetados | Versão <span id="versaoRodape">2.1.0</span> |
-  Base de conhecimento: Boothroyd/Dewhurst/Knight DFMA · Bayer Thermoplastics Part & Mold Design · Xometry Design Guidelines · IIT Bombay/dsource
+  Sistema de Avaliação de Melhoria - Produtos Injetados | Versão <span id="versaoRodape">2.3.0</span> |
+  Base de conhecimento: Boothroyd DFMA · Bayer · Xometry · IIT Bombay · Normas NBR 14136 / NBR NM 60669-1 / IEC 60884 / IEC 60669-1 / NBR 5410
 </footer>
 
-<!-- Bibliotecas CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/index.min.js"></script>
+<!-- Bibliotecas LOCAIS (pasta libs) — sem dependência de CDN, funciona offline -->
+<script src="libs/pdf.min.js"></script>
+<script src="libs/tesseract.min.js"></script>
+<script>
+// Configuração do worker do pdf.js (arquivo local)
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
+}
+
+var cdnErro = false;
+function lidarComErroCDN(msg) {
+  cdnErro = true;
+  console.warn('Erro ao carregar biblioteca: ' + msg);
+}
+</script>
 
 <script>
-const VERSAO = '2.1.0';
+const VERSAO = '2.3.0';
 document.getElementById('versaoRodape').textContent = VERSAO;
 
 // ------------------------------------------------------------------
@@ -142,17 +214,17 @@ const REGRAS = {
     'ABS':  [1.14, 3.56],
     'PMMA': [0.64, 12.70],
     'PE':   [0.76, 5.08],
-    'PVC':  [NULL, NULL],
+    'PVC':  [null, null],
     'PC':   [1.02, 3.81],
-    'PC/ABS':[NULL, NULL],
+    'PC/ABS':[null, null],
     'PA':   [0.76, 2.92],
-    'PBT':  [NULL, NULL],
+    'PBT':  [null, null],
     'POM':  [0.76, 3.05],
-    'TPE':  [NULL, NULL],
+    'TPE':  [null, null],
     'TPU':  [2.03, 19.05],
-    'TPV':  [NULL, NULL],
-    'PEI':  [NULL, NULL],
-    'PEEK': [NULL, NULL]
+    'TPV':  [null, null],
+    'PEI':  [null, null],
+    'PEEK': [null, null]
   },
   draft: {
     padrao: 1.0,           // graus (Bayer)
@@ -164,7 +236,7 @@ const REGRAS = {
   ribs: {
     espessuraPctMin: 40,
     espessuraPctMax: 60,
-    alturaMaxPct: 300      // altura < 3x espessura base
+    alturaMaxPct: 300,     // altura < 3x espessura base
     draftMin: 0.5,
     raioBasePct: 25,       // >= 1/4 da parede
     espacamentoMinPct: 400 // >= 4x espessura rib
@@ -191,6 +263,63 @@ const REGRAS = {
   }
 };
 
+// ------------------------------------------------------------------
+// NORMAS DE TOMADAS E INTERRUPTORES (schema v1.3.0)
+// ABNT NBR 14136 · NBR NM 60669-1 · IEC 60884-1 · IEC 60669-1
+// Valores de fontes publicas — confirmar na norma oficial antes de uso critico
+// ------------------------------------------------------------------
+const NORMAS = {
+  tomada: {
+    'NBR 14136': {
+      tensao: 250,
+      corrente10A_pino: 4.0,      // diametro do pino/furo 10 A (mm)
+      corrente20A_pino: 4.8,      // diametro do pino/furo 20 A (mm)
+      toleranciaPino: 0.05,       // ± mm
+      espacamentoCentros: 19.0,   // mm
+      toleranciaEspacamento: 0.2, // ± mm
+      angulo: 90,                 // graus (Y)
+      comprimentoPino: 13.5,      // mm
+      terraObrigatorio: true,
+      marcacoes: ['10A ou 20A','250V~','simbolo terra']
+    },
+    'IEC 60884': {
+      tensao: 250,
+      pinoPadrao: 4.8,
+      espacamentoCentros: 19.0,
+      durabilidade: '5000 insercoes / 10000 cursos',
+      marcacoes: ['corrente (A)','tensao (V)','fabricante','IP quando aplicavel']
+    }
+  },
+  interruptor: {
+    'NBR NM 60669-1 / IEC 60669-1': {
+      tensaoMax: 440,
+      correnteMax: 63,
+      correntesComuns: ['10A','10AX','16A','16AX'],
+      durabilidade16A: 40000,     // operacoes (<=16A / <=250V CA)
+      ipGraus: ['IP20','IP40','IP44','IP54','IP55'],
+      incandescencia: 850,        // C
+      marcacoes: ['corrente (A ou AX)','tensao (V)','simbolo ~','fabricante','IPXX']
+    }
+  },
+  materiais: {
+    incandescenciaMin: 850,       // C
+    ul94: ['V-0','V-1'],
+    terraObrigatorio: true
+  },
+  instalacao: { // NBR 5410 — Instalacoes Eletricas de Baixa Tensao
+    tensaoMax: 1000,              // V CA
+    bitolas: { iluminacao: 1.5, tomadas: 2.5, comando: 0.5, forca: 2.5 }, // mm2
+    dr30mA: ['banheiro/chuveiro','areas externas','tomadas internas p/ uso externo','cozinhas/copas/lavanderias/garagens'],
+    esquemas: ['TT','TN','IT'],
+    contatoPE: true,
+    protecaoContatos: 'IP2X ou isolacao 500 V / 1 min',
+    equipotencializacao: 'BEP obrigatoria',
+    separacaoCircuitos: 'iluminacao separada de tomadas',
+    verificacaoFinal: 'inspecao visual + ensaios (sec.7)',
+    marcacoes: ['DR 30mA','PE/aterramento','bitola dos condutores','quadro de cargas','identificacao de circuitos']
+  }
+};
+
 let desenhoExtraido = {
   numeroPeca: '',
   revisao: '',
@@ -205,7 +334,7 @@ let avaliacaoResultado = {};
 // Abas
 // ------------------------------------------------------------------
 function abrirAba(id, btn) {
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.classList.remove('hidden'); });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('aba-' + id).classList.add('active');
   if (btn) btn.classList.add('active');
@@ -242,6 +371,14 @@ async function processarArquivoDocumento() {
   if (!file) { alert('Selecione um arquivo primeiro.'); return; }
   const ext = file.name.split('.').pop().toLowerCase();
 
+  // Se o CDN falhou e não é simulação, avisa o usuário
+  if (cdnErro && (ext === 'pdf' || ext === 'jpg' || ext === 'jpeg' || ext === 'png')) {
+    alert('As bibliotecas externas não carregaram (sem internet ou CDN bloqueado).\n' +
+          'Use o Modo Simulação para testar o sistema, ou verifique sua conexão e recarregue a página.');
+    setStatus('CDN não carregado. Use o Modo Simulação.');
+    return;
+  }
+
   setStatus('Processando arquivo...');
   let texto = '';
 
@@ -265,8 +402,11 @@ async function processarArquivoDocumento() {
   document.getElementById('textoExtraido').value = texto;
   desenhoExtraido.textoBruto = texto;
   desenhoExtraido.dimensoes = extrairDimensoes(texto);
-  desenhoExtraido.material = detectarMaterial(texto);
-  desenhoExtraido.numeroPeca = extrairNumeroPeca(texto, file.name);
+  // Material: campo manual tem prioridade sobre a deteccao automatica
+  const matManual = document.getElementById('materialManual')?.value;
+  desenhoExtraido.material = matManual || detectarMaterial(texto);
+  const pecaManual = document.getElementById('numeroPecaManual')?.value.trim();
+  desenhoExtraido.numeroPeca = pecaManual || extrairNumeroPeca(texto, file.name);
   desenhoExtraido.revisao = extrairRevisao(texto);
 
   setStatus('Texto extraído com sucesso.');
@@ -275,7 +415,10 @@ async function processarArquivoDocumento() {
 }
 
 async function extrairTextoPDF(file) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.js';
+  if (typeof pdfjsLib === 'undefined') {
+    throw new Error('pdf.js não carregado. Verifique se a pasta libs está no repositório.');
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let textoCompleto = '';
@@ -289,17 +432,40 @@ async function extrairTextoPDF(file) {
 }
 
 async function extrairTextoImagem(file) {
-  const worker = await Tesseract.createWorker('por');
-  worker.on('progress', p => {
-    const bar = document.getElementById('ocrBar');
-    if (bar) bar.style.width = Math.round(p.progress * 100) + '%';
-  });
+  if (typeof Tesseract === 'undefined') {
+    throw new Error('Tesseract.js não carregado. Verifique se a pasta libs está no repositório.');
+  }
   document.getElementById('ocrProgress').classList.remove('hidden');
   const url = URL.createObjectURL(file);
-  const ret = await worker.recognize(url);
-  await worker.terminate();
-  document.getElementById('ocrProgress').classList.add('hidden');
-  return ret.data.text || '';
+  let worker;
+  try {
+    // Converte caminhos relativos em URLs ABSOLUTAS (necessário porque o
+    // Tesseract cria o worker via blob e importScripts nao resolve relativos)
+    const abs = (p) => new URL(p, window.location.href).href;
+    worker = await Tesseract.createWorker('por', 1, {
+      workerPath: abs('libs/worker.min.js'),
+      corePath: abs('libs/tesseract-core-simd-lstm.wasm.js'),
+      langPath: abs('libs'),
+      gzip: true
+    });
+    // API de progresso pode variar entre versoes do Tesseract
+    if (typeof worker.setProgress === 'function') {
+      worker.setProgress(p => {
+        const bar = document.getElementById('ocrBar');
+        if (bar) bar.style.width = Math.round((p.progress || 0) * 100) + '%';
+      });
+    } else if (typeof worker.on === 'function') {
+      worker.on('progress', p => {
+        const bar = document.getElementById('ocrBar');
+        if (bar) bar.style.width = Math.round((p.progress || 0) * 100) + '%';
+      });
+    }
+    const ret = await worker.recognize(url);
+    return ret.data.text || '';
+  } finally {
+    if (worker) await worker.terminate();
+    document.getElementById('ocrProgress').classList.add('hidden');
+  }
 }
 
 function limparArquivo() {
@@ -344,10 +510,39 @@ function extrairDimensoes(texto) {
 }
 
 function detectarMaterial(texto) {
-  const t = texto.toUpperCase();
-  const materiais = ['PA','PP','PC','ABS','PS','PE','PVC','PMMA','PBT','POM','TPU','TPE','PEI','PEEK','PA6','PA66','PC/ABS'];
-  for (const mat of materiais) {
-    if (t.includes(mat)) return mat;
+  const t = ' ' + texto.toUpperCase().replace(/[.,;:()]/g, ' ') + ' ';
+
+  // 1) Padroes explicito no desenho tem prioridade maxima
+  const explicitos = [
+    [/MATERIAL\s*[:=\-]?\s*(POLIPROPILENO|PP)\b/, 'PP'],
+    [/MATERIAL\s*[:=\-]?\s*(POLIAMIDA|NYLON|PA\s*6\s*6?|PA)\b/, 'PA'],
+    [/MATERIAL\s*[:=\-]?\s*(POLICARBONATO|PC)\b/, 'PC'],
+    [/MATERIAL\s*[:=\-]?\s*(ABS)\b/, 'ABS'],
+    [/MATERIAL\s*[:=\-]?\s*(ACETAL|POM)\b/, 'POM'],
+    [/MATERIAL\s*[:=\-]?\s*(POLIESTIRENO|PS)\b/, 'PS'],
+    [/MATERIAL\s*[:=\-]?\s*(POLIETILENO|PE)\b/, 'PE'],
+    [/MATERIAL\s*[:=\-]?\s*(PBT)\b/, 'PBT'],
+    [/MATERIAL\s*[:=\-]?\s*(PMMA|ACRILICO)\b/, 'PMMA'],
+    [/MATERIAL\s*[:=\-]?\s*(PVC)\b/, 'PVC'],
+    [/MATERIAL\s*[:=\-]?\s*(TPU)\b/, 'TPU'],
+    [/MATERIAL\s*[:=\-]?\s*(TPE)\b/, 'TPE']
+  ];
+  for (const [re, mat] of explicitos) if (re.test(t)) return mat;
+
+  // 2) Nomes completos (evita confundir siglas curtas)
+  const nomes = [
+    [/POLIPROPILENO/, 'PP'], [/POLIAMIDA|NYLON/, 'PA'],
+    [/POLICARBONATO/, 'PC'], [/POLIESTIRENO/, 'PS'],
+    [/POLIETILENO/, 'PE'], [/ACETAL/, 'POM'],
+    [/ACRILICO/, 'PMMA'], [/POLIESTER/, 'PBT']
+  ];
+  for (const [re, mat] of nomes) if (re.test(t)) return mat;
+
+  // 3) Siglas como PALAVRA INTEIRA ( bordas ), ordem: mais especificas primeiro
+  const siglas = ['PC/ABS','PA66','PA6','ABS','PMMA','PBT','PVC','TPU','TPE','POM','PEI','PEEK','PP','PC','PS','PE','PA'];
+  for (const mat of siglas) {
+    const re = new RegExp('\\b' + mat.replace('/', '\\/') + '\\b');
+    if (re.test(t)) return mat;
   }
   return '';
 }
@@ -533,6 +728,156 @@ function extrairNumero(fragmento) {
   // placeholder para extração de número de draft se necessário
   const m = fragmento.match(/(\d+[.,]?\d*)\s*°?/);
   return m ? parseFloat(m[1].replace(',', '.')) : null;
+}
+
+// ------------------------------------------------------------------
+// Avaliação por normas elétricas (tomadas e interruptores)
+// ------------------------------------------------------------------
+function avaliarNormas() {
+  const container = document.getElementById('normasResultado');
+  const tipo = document.getElementById('tipoProdutoNorma').value;
+  const corrente = parseInt(document.getElementById('correnteNorma').value, 10);
+  const texto = (desenhoExtraido.textoBruto || '').toUpperCase();
+  const alertas = [];
+  const ok = [];
+
+  // Verifica se há texto extraído
+  if (!texto.trim()) {
+    container.innerHTML = '<div class="alert warn"><strong>⚠️ Nenhum texto extraído.</strong> Processe um PDF/imagem ou carregue a simulação antes de aplicar as normas.</div>';
+    return;
+  }
+
+  if (tipo === 'tomada') {
+    const regra = NORMAS.tomada['NBR 14136'];
+    const pinoEsperado = corrente === 20 ? regra.corrente20A_pino : regra.corrente10A_pino;
+
+    // 1) Diâmetro do pino/furo — procura Ø valor no texto
+    const diametros = [];
+    const reDi = /(?:Ø|DIA|DIAM|⌀)\s*(\d+[.,]?\d*)/g;
+    let m;
+    while ((m = reDi.exec(texto)) !== null) diametros.push(parseFloat(m[1].replace(',', '.')));
+    if (diametros.length > 0) {
+      const encontrados = diametros.filter(d => d >= 2 && d <= 8);
+      if (encontrados.length > 0) {
+        const melhor = encontrados.find(d => Math.abs(d - pinoEsperado) <= 0.5);
+        if (melhor !== undefined) {
+          const dentro = Math.abs(melhor - pinoEsperado) <= regra.toleranciaPino + 0.01;
+          if (dentro) ok.push('Ø ' + melhor.toFixed(1) + ' mm confere com ' + corrente + ' A (Ø ' + pinoEsperado + ' mm).');
+          else alertas.push({t:'warn',x:'Ø ' + melhor.toFixed(1) + ' mm próximo de ' + corrente + ' A, mas fora da tolerância ±' + regra.toleranciaPino + ' mm (esperado Ø ' + pinoEsperado + ' mm).'});
+        } else {
+          alertas.push({t:'crit',x:'Diâmetro(s) ' + encontrados.join(', ') + ' mm não confere(m) com ' + corrente + ' A (esperado Ø ' + pinoEsperado + ' ± ' + regra.toleranciaPino + ' mm).'});
+        }
+      }
+    } else {
+      alertas.push({t:'info',x:'Diâmetro do pino/furo não identificado no texto (OCR pode ter falhado). Esperado Ø ' + pinoEsperado + ' mm para ' + corrente + ' A.'});
+    }
+
+    // 2) Espaçamento entre centros (19 mm)
+    if (/19[.,]?0?/.test(texto)) ok.push('Espaçamento de 19 mm entre centros encontrado (NBR 14136).');
+    else alertas.push({t:'info',x:'Espaçamento de 19 mm entre centros não identificado. Verificar no desenho.'});
+
+    // 3) Corrente marcada no desenho
+    if (texto.includes(corrente + 'A')) ok.push('Marcação de corrente ' + corrente + ' A encontrada.');
+    else alertas.push({t:'warn',x:'Marcação de corrente ' + corrente + ' A não encontrada no texto extraído.'});
+
+    // 4) Tensão 250V
+    if (/250\s*V/.test(texto)) ok.push('Tensão 250 V encontrada.');
+    else alertas.push({t:'info',x:'Tensão nominal 250 V não identificada no texto.'});
+
+    // 5) Aterramento / 3º pino
+    if (/TERRA|ATERRAMENTO|⏚|\/\/|\/\s*\//.test(texto)) ok.push('Indicação de aterramento encontrada.');
+    else alertas.push({t:'warn',x:'Aterramento não identificado. NBR 14136 exige contato terra (3º pino).'});
+
+    // 6) Compatibilidade
+    alertas.push({t:'info',x:'Regra: tomada 20 A aceita plugues 10 A e 20 A; tomada 10 A NÃO aceita plugue 20 A.'});
+
+    // 7) Material / incandescência
+    if (/850/.test(texto)) ok.push('Temperatura de incandescência 850 °C identificada.');
+    else alertas.push({t:'info',x:'Verificar material isolante autoextinguível (850 °C, UL 94 V-0/V-1).'});
+
+  } else if (tipo === 'interruptor') {
+    // Interruptor
+    const regra = NORMAS.interruptor['NBR NM 60669-1 / IEC 60669-1'];
+
+    if (texto.includes(corrente + 'A') || texto.includes(corrente + 'AX')) ok.push('Corrente nominal ' + corrente + ' A/AX encontrada.');
+    else alertas.push({t:'warn',x:'Corrente nominal (' + corrente + ' A) não encontrada. Marcas comuns: ' + regra.correntesComuns.join(', ') + '.'});
+
+    if (/250\s*V/.test(texto)) ok.push('Tensão 250 V encontrada.');
+    else alertas.push({t:'info',x:'Tensão nominal não identificada (típico 250 V).'});
+
+    const ips = regra.ipGraus.filter(ip => texto.includes(ip));
+    if (ips.length > 0) ok.push('Grau de proteção ' + ips.join(', ') + ' encontrado.');
+    else alertas.push({t:'warn',x:'Grau de proteção IP não identificado (IP20/IP40/IP44/IP54/IP55).'});
+
+    if (/850/.test(texto)) ok.push('Incandescência 850 °C identificada.');
+    else alertas.push({t:'info',x:'Verificar base termoplástica autoextinguível até 850 °C.'});
+
+    alertas.push({t:'info',x:'Durabilidade mecânica: ' + regra.durabilidade16A.toLocaleString('pt-BR') + ' operações (≤16 A / ≤250 V CA).'});
+    alertas.push({t:'info',x:'Marcações obrigatórias: ' + regra.marcacoes.join(', ') + '. Verificar no desenho.'});
+  }
+
+  else if (tipo === 'instalacao') {
+    const r = NORMAS.instalacao;
+
+    // 1) Aterramento / PE
+    if (/TERRA|ATERRAMENTO|PE\b|PE\/|\/\//.test(texto)) ok.push('Indicação de aterramento (PE) encontrada — NBR 5410 exige contato PE em todas as tomadas fixas.');
+    else alertas.push({t:'crit',x:'Aterramento (PE) não identificado. NBR 5410 item 6.5.3.1: todas as tomadas fixas devem ter contato de aterramento.'});
+
+    // 2) DR 30 mA
+    if (/DR\s*30|\/\/30mA|30\s*MA|I?D?[Rr]\s*30/.test(texto)) ok.push('Dispositivo DR 30 mA identificado.');
+    else alertas.push({t:'warn',x:'DR 30 mA não identificado. Obrigatório em banheiros/chuveiro, áreas externas, cozinhas, lavanderias e garagens.'});
+
+    // 3) Bitolas dos condutores
+    const bitolas = [];
+    const reBit = /(\d+[.,]?\d*)\s*M{0,1}M?2|(\d+[.,]?\d*)\s*MM²/g;
+    let bm;
+    while ((bm = reBit.exec(texto)) !== null) {
+      const v = parseFloat((bm[1]||bm[2]).replace(',', '.'));
+      if (v >= 0.4 && v <= 10) bitolas.push(v);
+    }
+    if (bitolas.length > 0) {
+      ilum = bitolas.some(b => b >= r.bitolas.iluminacao);
+      tom = bitolas.some(b => b >= r.bitolas.tomadas);
+      if (tom) ok.push('Bitola ≥ 2,5 mm² para tomadas encontrada.');
+      else alertas.push({t:'warn',x:'Bitola de tomada (mín. 2,5 mm²) não identificada. Encontrado(s): ' + bitolas.join(', ') + ' mm².'});
+      if (ilum) ok.push('Bitola ≥ 1,5 mm² para iluminação encontrada.');
+    } else {
+      alertas.push({t:'info',x:'Bitolas dos condutores não identificadas no texto. Mínimos: iluminação 1,5 mm²; tomadas 2,5 mm²; comando 0,5 mm².'});
+    }
+
+    // 4) Esquema de aterramento
+    const esq = r.esquemas.filter(e => texto.includes(e));
+    if (esq.length > 0) ok.push('Esquema de aterramento ' + esq.join('/') + ' identificado.');
+    else alertas.push({t:'info',x:'Esquema de aterramento (TT/TN/IT) não identificado no desenho.'});
+
+    // 5) Equipotencialização / BEP
+    if (/BEP|EQUIPOTENCIAL/.test(texto)) ok.push('Barra de equipotencialização (BEP) identificada.');
+    else alertas.push({t:'warn',x:'BEP (barra de equipotencialização principal) não identificada.'});
+
+    // 6) Separação de circuitos
+    if (/ILUMINA/.test(texto) && /TOMADA/.test(texto)) ok.push('Circuitos de iluminação e tomadas presentes (verificar separação).');
+    else alertas.push({t:'info',x:'Verificar separação entre circuitos de iluminação e tomadas (NBR 5410 sec.9).'});
+
+    // 7) DPS
+    if (/\bDPS\b|SURTO/.test(texto)) ok.push('DPS (proteção contra surtos) identificado.');
+    else alertas.push({t:'info',x:'DPS — verificar conforme análise de risco de SPDA (NBR 5410 sec.5).'});
+
+    // 8) Verificação final
+    alertas.push({t:'info',x:'Exigência: verificação final com inspeção visual + ensaios antes da energização (sec.7), com registro de as built, quadro de cargas e identificação de circuitos.'});
+    alertas.push({t:'info',x:'Critério de ampacidade: I_z ≥ I_b, aplicando fatores de correção FCA e FCT.'});
+  }
+
+  // Monta HTML
+  const tituloNorma = tipo === 'tomada' ? 'Tomada NBR 14136' : (tipo === 'interruptor' ? 'Interruptor NBR NM 60669-1' : 'Instalação NBR 5410');
+  let html = '<h3 style="font-size:1rem;">Resultado da análise — ' + tituloNorma + (tipo === 'instalacao' ? '' : ' (' + corrente + ' A)') + '</h3>';
+  if (ok.length > 0) {
+    html += '<div class="alert ok"><span class="titulo">✅ Conformidades detectadas:</span><br>' + ok.map(o => '• ' + o).join('<br>') + '</div>';
+  }
+  alertas.forEach(a => {
+    const cls = a.t === 'crit' ? 'alert crit' : (a.t === 'warn' ? 'alert warn' : 'alert ok');
+    html += '<div class="' + cls + '">' + a.x + '</div>';
+  });
+  container.innerHTML = html;
 }
 
 function montarResultado() {
